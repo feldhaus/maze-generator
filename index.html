@@ -1,0 +1,232 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Maze Generator</title>
+    <style>
+        * {padding: 0; margin: 0}
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.7.0/pixi.min.js"></script>
+</head>
+<body>
+    <script type="text/javascript">
+        
+        window.onload = function () {
+            // constants
+            const SIZE = 30;
+
+            // create application
+            const app = new PIXI.Application(
+                window.innerWidth,
+                window.innerHeight,
+                {
+                    backgroundColor: 0xd75b66,
+                    antialias: true
+                }
+            );
+            document.body.appendChild(app.view);
+            
+            // add title text
+            const title = new PIXI.Text(
+                'MAZE_GENERATOR',
+                {
+                    fontFamily: '\"Courier New\", Courier, monospace',
+                    fontWeight: 900,
+                    fill: 0xffffff,
+                    align: 'center'
+                }
+            );
+            app.stage.addChild(title);
+            title.position.set(app.renderer.width / 2, 20);
+            title.anchor.set(0.5, 0);
+
+            // add tip text
+            const tip = new PIXI.Text(
+                'Click to generate a new one:',
+                {
+                    fontFamily: '\"Courier New\", Courier, monospace',
+                    fontSize: 16,
+                    fill: 0xffffff,
+                    align: 'center'
+                }
+            );
+            app.stage.addChild(tip);
+            tip.position.set(app.renderer.width / 2, 50);
+            tip.anchor.set(0.5, 0);
+            
+            // create a graphics
+            const graphics = new PIXI.Graphics();
+            app.stage.addChild(graphics);
+            
+            // tiles matrix
+            const tiles = [];
+
+            // get availables neighbours
+            function getAvailable (row, col) {
+                return tiles[row][col].neighbours.filter(tile => !tile.visited);
+            }
+
+            // get a random value from an array
+            function getRandomFromAnArray (array) {
+                return array[Math.floor(Math.random() * array.length)];
+            }
+
+            // remove an item from an array
+            function removeFromAnArray (array, item) {
+                array.splice(array.indexOf(item), 1);
+            }
+
+            // maze creation
+            function maze (col, row) {
+                // get tile
+                const tile = tiles[col][row];
+
+                // set tile as visited
+                tile.visited = true;
+                
+                // get availables neighbours
+                let available = getAvailable(col, row);
+                
+                // while have available
+                while (available.length > 0) {
+                    // get a random neighbor
+                    const neighbor = getRandomFromAnArray(available);
+                    
+                    // removes the neighbor of the current element
+                    removeFromAnArray(tile.neighbours, neighbor);
+                    
+                    // removes the current element of neighbor
+                    removeFromAnArray(neighbor.neighbours, tile);
+                    
+                    // execute the process in the neighbor
+                    maze(neighbor.col, neighbor.row);
+                    
+                    // get availables neighbours
+                    available = getAvailable(col, row);
+                }
+            }
+            
+            // maze generation
+            function generate () {
+                const width = app.renderer.width;
+                const height = app.renderer.height;
+                const cols = Math.floor((width - 40) / SIZE);
+                const rows = Math.floor((height - 100) / SIZE);
+                const marginLeft = (width - cols * SIZE) / 2;
+                const marginTop = height - marginLeft - rows * SIZE;
+
+                // create tiles
+                for (let col = 0; col < cols; col++) {
+                    tiles[col] = [];
+                    for (let row = 0; row < rows; row++) {
+                        tiles[col][row] = {
+                            row: row,
+                            col: col,
+                            visited: false,
+                            neighbours: []
+                        };
+                    }
+                }
+                
+                // define neighbours
+                for (let col = 0; col < cols; col++) {
+                    for (let row = 0; row < rows; row++) {
+                        if (col > 0) { // west
+                            tiles[col][row].neighbours.push(tiles[col-1][row]);
+                        }
+                        if (row > 0) { // north
+                            tiles[col][row].neighbours.push(tiles[col][row-1]);
+                        }
+                        if (col < cols - 1) { // east
+                            tiles[col][row].neighbours.push(tiles[col+1][row]);
+                        }
+                        if (row < rows - 1) { // south
+                            tiles[col][row].neighbours.push(tiles[col][row+1]);
+                        }
+                    }
+                }
+                
+                // start maze creation
+                maze(0, 0);
+                
+                // clear and set the color
+                graphics.clear();
+                graphics.lineStyle(2, 0x23345c);
+                
+                // drawing
+                let px, py, tile, neighbours;
+                for (let col = 0; col < cols; col++) {
+                    for (let row = 0; row < rows; row++) {
+                        // get positions
+                        px = col * SIZE + marginLeft;
+                        py = row * SIZE + marginTop;
+
+                        // get tile
+                        tile = tiles[col][row];
+
+                        graphics.moveTo(px, py + SIZE);
+
+                        // west
+                        if (
+                            col > 0
+                            &&
+                            tile.neighbours.indexOf(tiles[col-1][row]) < 0
+                        ) {
+                            graphics.moveTo(px, py);
+                        } else {
+                            graphics.lineTo(px, py);
+                        }
+                        
+                        // north
+                        if (
+                            row > 0
+                            &&
+                            tile.neighbours.indexOf(tiles[col][row-1]) < 0
+                        ) {
+                            graphics.moveTo(px + SIZE, py);
+                        } else {
+                            graphics.lineTo(px + SIZE, py);
+                        }
+                        
+                        // east
+                        if (
+                            col < cols - 1
+                            &&
+                            tile.neighbours.indexOf(tiles[col+1][row]) < 0
+                        ) {
+                            graphics.moveTo(px + SIZE, py + SIZE);
+                        } else {
+                            graphics.lineTo(px + SIZE, py + SIZE);
+                        }
+                        
+                        // south
+                        if (
+                            row < rows - 1
+                            &&
+                            tile.neighbours.indexOf(tiles[col][row+1]) < 0
+                        ) {
+                            graphics.moveTo(px, py + SIZE);
+                        } else {
+                            graphics.lineTo(px, py + SIZE);
+                        }
+                    }
+                }
+            }
+            
+            // generate the first
+            generate();
+            
+            // generate a new when click
+            app.renderer.plugins.interaction.on('mousedown', generate);
+
+            // update size and positions
+            window.onresize = function () {
+                app.renderer.resize(window.innerWidth, window.innerHeight);
+                title.x = app.renderer.width / 2;
+                tip.x = app.renderer.width / 2;
+                generate();
+            }
+        }
+    </script>
+</body>
+</html>
